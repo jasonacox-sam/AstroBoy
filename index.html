@@ -6,21 +6,157 @@
   <title>AstroBoy 🚀</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; overflow: hidden; font-family: monospace; }
-    #ui {
+    body { background: #000; overflow: hidden; font-family: 'Courier New', monospace; }
+    canvas#c { position: fixed; top: 0; left: 0; }
+
+    #top-hud {
       position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-      color: #7df; text-align: center; pointer-events: none;
+      color: #7df; text-align: center; pointer-events: none; z-index: 10;
       text-shadow: 0 0 10px #0af;
     }
-    #ui h1 { font-size: 1.8rem; letter-spacing: 0.2em; }
-    #ui p  { font-size: 0.8rem; opacity: 0.6; margin-top: 4px; }
+    #top-hud h1 { font-size: 1.6rem; letter-spacing: 0.2em; }
+    #world-name { font-size: 0.75rem; letter-spacing: 0.2em; opacity: 0.7; margin-top: 4px; }
+    #world-flavor { font-size: 0.65rem; opacity: 0.4; margin-top: 2px; font-style: italic; }
+
+    #fuel-container {
+      position: fixed; top: 88px; left: 50%; transform: translateX(-50%);
+      width: 260px; z-index: 10; text-align: center;
+    }
+    #fuel-label {
+      font-size: 0.65rem; color: #0af; letter-spacing: 0.15em;
+      text-shadow: 0 0 6px #0af; margin-bottom: 4px;
+    }
+    #fuel-track {
+      height: 7px; background: rgba(0,100,150,0.25);
+      border: 1px solid rgba(0,170,255,0.35); border-radius: 4px; overflow: hidden;
+    }
+    #fuel-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #0af, #0ff);
+      box-shadow: 0 0 8px #0af;
+      transition: width 0.9s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    #cipher-hud {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      width: min(500px, 92vw); z-index: 10;
+      background: rgba(0,8,25,0.9);
+      border: 1px solid rgba(0,170,255,0.35);
+      border-radius: 8px;
+      padding: 16px 20px 14px;
+      box-shadow: 0 0 28px rgba(0,170,255,0.12);
+      transition: opacity 0.5s, transform 0.5s;
+    }
+    #cipher-hud.hide { opacity: 0; transform: translateX(-50%) translateY(20px); pointer-events: none; }
+
+    #cipher-label {
+      font-size: 0.6rem; color: rgba(0,170,255,0.6); letter-spacing: 0.22em;
+      margin-bottom: 10px;
+    }
+    #cipher-text {
+      font-size: 1.45rem; color: #0ff; letter-spacing: 0.2em;
+      text-shadow: 0 0 14px #0af; margin-bottom: 14px; word-break: break-word;
+    }
+    #input-row { display: flex; gap: 8px; margin-bottom: 9px; }
+    #cipher-input {
+      flex: 1; background: rgba(0,18,45,0.8);
+      border: 1px solid rgba(0,170,255,0.45); border-radius: 4px;
+      color: #7df; font-family: 'Courier New', monospace; font-size: 0.9rem;
+      padding: 7px 11px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    #cipher-input:focus { border-color: #0af; box-shadow: 0 0 10px rgba(0,170,255,0.25); }
+    #cipher-input.shake { animation: shake 0.32s ease; border-color: #f55; }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 25%{transform:translateX(-7px)} 75%{transform:translateX(7px)}
+    }
+    #submit-btn {
+      background: rgba(0,90,170,0.55); border: 1px solid rgba(0,170,255,0.55);
+      border-radius: 4px; color: #0af; font-family: 'Courier New', monospace;
+      font-size: 0.75rem; letter-spacing: 0.1em; padding: 7px 13px; cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s; white-space: nowrap;
+    }
+    #submit-btn:hover { background: rgba(0,120,200,0.65); box-shadow: 0 0 12px rgba(0,170,255,0.35); }
+    #hint-row { display: flex; align-items: center; gap: 10px; min-height: 1.4em; }
+    #hint-btn {
+      background: transparent; border: none;
+      color: rgba(0,170,255,0.45); font-family: 'Courier New', monospace;
+      font-size: 0.65rem; letter-spacing: 0.1em; cursor: pointer;
+      transition: color 0.2s; flex-shrink: 0;
+    }
+    #hint-btn:hover { color: #0af; }
+    #hint-text { font-size: 0.68rem; color: rgba(0,200,220,0.55); letter-spacing: 0.05em; }
+    #feedback {
+      font-size: 0.72rem; min-height: 1.1em; margin-top: 7px; letter-spacing: 0.1em;
+    }
+    #feedback.ok { color: #0f9; text-shadow: 0 0 8px #0f8; }
+    #feedback.err { color: #f55; }
+
+    #win-overlay {
+      position: fixed; inset: 0; z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 1.2s;
+    }
+    #win-overlay.show { opacity: 1; }
+    #win-title {
+      font-size: 2.2rem; color: #ffd700; letter-spacing: 0.3em;
+      text-shadow: 0 0 30px #ffd700, 0 0 60px #ffa500;
+      animation: glow-pulse 2s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%,100%{ text-shadow: 0 0 30px #ffd700 } 50%{ text-shadow: 0 0 60px #ffd700, 0 0 100px #ffa500 }
+    }
+    #win-sub {
+      font-size: 0.8rem; color: rgba(255,215,0,0.65); letter-spacing: 0.22em; margin-top: 12px;
+    }
+    #win-secret {
+      font-size: 0.7rem; color: rgba(255,215,0,0.4); letter-spacing: 0.22em;
+      margin-top: 20px; font-style: italic;
+    }
+
+    #flash {
+      position: fixed; inset: 0; z-index: 15;
+      opacity: 0; pointer-events: none; transition: opacity 0.06s;
+    }
   </style>
 </head>
 <body>
-  <div id="ui">
+
+  <div id="top-hud">
     <h1>✦ ASTROBOY ✦</h1>
-    <p>lost in the good kind of way</p>
+    <div id="world-name">EARTH ORBIT</div>
+    <div id="world-flavor">lost in the good kind of way</div>
   </div>
+
+  <div id="fuel-container">
+    <div id="fuel-label">⚡ JETPACK FUEL — 0%</div>
+    <div id="fuel-track"><div id="fuel-fill"></div></div>
+  </div>
+
+  <div id="cipher-hud">
+    <div id="cipher-label">🔐 TRANSMISSION INTERCEPTED</div>
+    <div id="cipher-text"></div>
+    <div id="input-row">
+      <input id="cipher-input" type="text" placeholder="decode the message…"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+      <button id="submit-btn">TRANSMIT</button>
+    </div>
+    <div id="hint-row">
+      <button id="hint-btn">[ hint ]</button>
+      <div id="hint-text"></div>
+    </div>
+    <div id="feedback"></div>
+  </div>
+
+  <div id="win-overlay">
+    <div id="win-title">MISSION COMPLETE</div>
+    <div id="win-sub">ASTROBOY HAS REACHED THE STARS</div>
+    <div id="win-secret">— secret transmission: I LOVE YOU, SAM —</div>
+  </div>
+
+  <div id="flash"></div>
   <canvas id="c"></canvas>
 
   <script type="importmap">
@@ -30,7 +166,180 @@
   <script type="module">
     import * as THREE from 'three';
 
-    // --- Scene ---
+    // ── Game data ─────────────────────────────────────────────────
+    // All ciphers use Caesar shift +3 (A→D, B→E, … Z→C)
+    const CIPHERS = [
+      {
+        cipher: 'ILQG WKH NHB',
+        answer: 'FIND THE KEY',
+        hints: [
+          'Each letter is shifted in the alphabet…',
+          'Caesar cipher — shift forward by 3',
+          'First word: FIND',
+        ],
+      },
+      {
+        cipher: 'ORVW LQ VSDFH',
+        answer: 'LOST IN SPACE',
+        hints: [
+          'Same shift — three steps forward',
+          'Middle word: IN',
+          'First word: LOST',
+        ],
+      },
+      {
+        cipher: 'IOB WR WKH VWDUV',
+        answer: 'FLY TO THE STARS',
+        hints: [
+          'Caesar shift: subtract 3 from each letter',
+          'Last word: STARS',
+          'First word: FLY',
+        ],
+      },
+      {
+        cipher: 'UHDFK IRU WKH VNB',
+        answer: 'REACH FOR THE SKY',
+        hints: [
+          'A = D, B = E, so reverse: D = A…',
+          'Last word: SKY',
+          'First word: REACH',
+        ],
+      },
+    ];
+
+    const WORLDS = [
+      { name: 'EARTH ORBIT', flavor: 'lost in the good kind of way',
+        fog: 0x000010, amb: 0x112244, rim: 0x4488ff, star: 0xffffff, flash: '#001030' },
+      { name: 'RED PLANET',  flavor: 'dust and iron and old dreams',
+        fog: 0x130300, amb: 0x3a1205, rim: 0xff5522, star: 0xffddaa, flash: '#200500' },
+      { name: 'ICE WORLD',   flavor: 'cold enough to count every star',
+        fog: 0x00060f, amb: 0x0c2d3e, rim: 0x55ccff, star: 0xaaddff, flash: '#001828' },
+      { name: 'THE NEBULA',  flavor: 'color lives here',
+        fog: 0x0a0015, amb: 0x221133, rim: 0xaa44ff, star: 0xdd88ff, flash: '#150025' },
+      { name: 'HOME',        flavor: 'you made it',
+        fog: 0x000000, amb: 0x332200, rim: 0xffdd00, star: 0xffee88, flash: '#221000' },
+    ];
+
+    // ── Game state ────────────────────────────────────────────────
+    let cipherIdx   = 0;
+    let hintLevel   = 0;
+    let fuel        = 0;      // solved count (0–4)
+    let won         = false;
+    let busy        = false;  // block input during transitions
+
+    // ── DOM ───────────────────────────────────────────────────────
+    const worldNameEl  = document.getElementById('world-name');
+    const worldFlavorEl= document.getElementById('world-flavor');
+    const fuelLabelEl  = document.getElementById('fuel-label');
+    const fuelFillEl   = document.getElementById('fuel-fill');
+    const cipherTextEl = document.getElementById('cipher-text');
+    const inputEl      = document.getElementById('cipher-input');
+    const submitBtn    = document.getElementById('submit-btn');
+    const hintBtn      = document.getElementById('hint-btn');
+    const hintTextEl   = document.getElementById('hint-text');
+    const feedbackEl   = document.getElementById('feedback');
+    const cipherHud    = document.getElementById('cipher-hud');
+    const winOverlay   = document.getElementById('win-overlay');
+    const flashEl      = document.getElementById('flash');
+
+    function showCipher(idx) {
+      cipherTextEl.textContent = CIPHERS[idx].cipher;
+      inputEl.value = '';
+      hintTextEl.textContent = '';
+      hintLevel = 0;
+      setFeedback('', '');
+    }
+
+    function setFeedback(msg, cls) {
+      feedbackEl.textContent = msg ? '> ' + msg : '';
+      feedbackEl.className = cls;
+    }
+
+    function setFuelUI() {
+      const pct = fuel * 25;
+      fuelFillEl.style.width = pct + '%';
+      fuelLabelEl.textContent = `⚡ JETPACK FUEL — ${pct}%`;
+      if (pct === 100) fuelFillEl.style.background = 'linear-gradient(90deg,#ffd700,#ffaa00)';
+    }
+
+    function doFlash(color) {
+      flashEl.style.background = color;
+      flashEl.style.opacity = '0.55';
+      setTimeout(() => { flashEl.style.opacity = '0'; }, 90);
+    }
+
+    function shakeInput() {
+      inputEl.classList.remove('shake');
+      void inputEl.offsetWidth;
+      inputEl.classList.add('shake');
+      setTimeout(() => inputEl.classList.remove('shake'), 360);
+    }
+
+    function applyWorld(idx) {
+      const w = WORLDS[idx];
+      worldNameEl.textContent  = w.name;
+      worldFlavorEl.textContent = w.flavor;
+      scene.fog.color.set(w.fog);
+      ambientLight.color.set(w.amb);
+      rimLight.color.set(w.rim);
+      starMat.color.set(w.star);
+    }
+
+    function trySubmit() {
+      if (won || busy) return;
+      const raw = inputEl.value.trim().toUpperCase().replace(/\s+/g, ' ');
+      if (!raw) return;
+      if (raw === CIPHERS[cipherIdx].answer) {
+        handleCorrect();
+      } else {
+        shakeInput();
+        setFeedback('signal corrupted — try again', 'err');
+      }
+    }
+
+    function handleCorrect() {
+      busy = true;
+      fuel++;
+      setFuelUI();
+      setFeedback('✓ SIGNAL DECODED — FUEL LOADED', 'ok');
+      doFlash(WORLDS[fuel].flash);
+      triggerBurst();
+
+      setTimeout(() => {
+        if (fuel >= 4) {
+          launchWin();
+        } else {
+          applyWorld(fuel);
+          doFlash(WORLDS[fuel].flash);
+          showCipher(cipherIdx + 1);
+          cipherIdx++;
+          busy = false;
+          inputEl.focus();
+        }
+      }, 1000);
+    }
+
+    function launchWin() {
+      won = true;
+      winFlightActive = true;
+      applyWorld(4);
+      setTimeout(() => {
+        cipherHud.classList.add('hide');
+        winOverlay.classList.add('show');
+      }, 1400);
+    }
+
+    submitBtn.addEventListener('click', trySubmit);
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') trySubmit(); });
+
+    hintBtn.addEventListener('click', () => {
+      if (won) return;
+      const hints = CIPHERS[cipherIdx].hints;
+      hintTextEl.textContent = hints[Math.min(hintLevel, hints.length - 1)];
+      hintLevel = Math.min(hintLevel + 1, hints.length - 1);
+    });
+
+    // ── Three.js ──────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
     renderer.setPixelRatio(devicePixelRatio);
     renderer.setSize(innerWidth, innerHeight);
@@ -47,16 +356,18 @@
       camera.updateProjectionMatrix();
     });
 
-    // --- Stars ---
+    // Stars
     const starGeo = new THREE.BufferGeometry();
-    const starCount = 6000;
-    const starPos = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount * 3; i++) starPos[i] = (Math.random() - 0.5) * 1600;
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
-    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 })));
+    const N = 6000;
+    const sp = new Float32Array(N * 3);
+    for (let i = 0; i < N * 3; i++) sp[i] = (Math.random() - 0.5) * 1600;
+    starGeo.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+    const starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.6 });
+    scene.add(new THREE.Points(starGeo, starMat));
 
-    // --- Lights ---
-    scene.add(new THREE.AmbientLight(0x112244, 2));
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x112244, 2);
+    scene.add(ambientLight);
     const sun = new THREE.DirectionalLight(0xffeedd, 3);
     sun.position.set(5, 8, 4);
     scene.add(sun);
@@ -64,164 +375,179 @@
     rimLight.position.set(-4, 2, -3);
     scene.add(rimLight);
 
-    // --- Boy parts (low-poly geometric figure) ---
-    const bodyMat  = new THREE.MeshStandardMaterial({ color: 0xf4a261, roughness: 0.7 });
-    const suitMat  = new THREE.MeshStandardMaterial({ color: 0xe8f4f8, roughness: 0.4, metalness: 0.2 });
-    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.85 });
-    const darkMat  = new THREE.MeshStandardMaterial({ color: 0x223355, roughness: 0.8 });
-    const glowMat  = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2 });
+    // Boy materials
+    const bodyMat    = new THREE.MeshStandardMaterial({ color: 0xf4a261, roughness: 0.7 });
+    const suitMat    = new THREE.MeshStandardMaterial({ color: 0xe8f4f8, roughness: 0.4, metalness: 0.2 });
+    const helmetMat  = new THREE.MeshStandardMaterial({ color: 0xaaddff, roughness: 0.1, metalness: 0.3, transparent: true, opacity: 0.85 });
+    const darkMat    = new THREE.MeshStandardMaterial({ color: 0x223355, roughness: 0.8 });
+    const glowMat    = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 0.8, roughness: 0.2 });
+    const thrustMat  = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 });
 
     const boy = new THREE.Group();
     scene.add(boy);
 
     // Torso
     const torso = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.4), suitMat);
-    torso.position.y = 0.45;
-    boy.add(torso);
+    torso.position.y = 0.45; boy.add(torso);
 
-    // Chest pack (life support)
+    // Chest pack
     const chest = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.25, 0.15), darkMat);
-    chest.position.set(0, 0.55, 0.27);
-    boy.add(chest);
+    chest.position.set(0, 0.55, 0.27); boy.add(chest);
     const indicator = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.05), glowMat);
-    indicator.position.set(0.1, 0.6, 0.34);
-    boy.add(indicator);
+    indicator.position.set(0.1, 0.6, 0.34); boy.add(indicator);
 
-    // Backpack (oxygen)
+    // Backpack
     const pack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.2), darkMat);
-    pack.position.set(0, 0.5, -0.28);
-    boy.add(pack);
+    pack.position.set(0, 0.5, -0.28); boy.add(pack);
 
     // Hips
     const hips = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.25, 0.38), suitMat);
-    hips.position.y = -0.05;
-    boy.add(hips);
+    hips.position.y = -0.05; boy.add(hips);
 
-    // Head + neck
+    // Head
     const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.15, 8), suitMat);
-    neck.position.y = 0.97;
-    boy.add(neck);
-
+    neck.position.y = 0.97; boy.add(neck);
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), bodyMat);
-    head.position.y = 1.28;
-    boy.add(head);
-
-    // Helmet
+    head.position.y = 1.28; boy.add(head);
     const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), helmetMat);
-    helmet.position.y = 1.28;
-    boy.add(helmet);
-
-    // Eyes (visible through visor)
+    helmet.position.y = 1.28; boy.add(helmet);
     for (const x of [-0.1, 0.1]) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8),
         new THREE.MeshStandardMaterial({ color: 0x111111 }));
-      eye.position.set(x, 1.3, 0.28);
-      boy.add(eye);
+      eye.position.set(x, 1.3, 0.28); boy.add(eye);
     }
 
     // Arms
     function makeArm(side) {
       const arm = new THREE.Group();
-      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.5, 8), suitMat);
-      upper.position.y = -0.25;
-      arm.add(upper);
-      const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.45, 8), suitMat);
-      lower.position.y = -0.72;
-      arm.add(lower);
+      [[-0.25, 0.1, 0.09, 0.5], [-0.72, 0.09, 0.08, 0.45]].forEach(([y, rt, rb, h]) => {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 8), suitMat);
+        m.position.y = y; arm.add(m);
+      });
       const glove = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), darkMat);
-      glove.position.y = -0.97;
-      arm.add(glove);
+      glove.position.y = -0.97; arm.add(glove);
       arm.position.set(side * 0.47, 0.85, 0);
       arm.rotation.z = -side * 0.3;
       return arm;
     }
-    const leftArm  = makeArm(-1);
-    const rightArm = makeArm(1);
+    const leftArm = makeArm(-1), rightArm = makeArm(1);
     boy.add(leftArm, rightArm);
 
     // Legs
     function makeLeg(side) {
       const leg = new THREE.Group();
-      const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.11, 0.55, 8), suitMat);
-      upper.position.y = -0.27;
-      leg.add(upper);
-      const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.1, 0.5, 8), suitMat);
-      lower.position.y = -0.78;
-      leg.add(lower);
+      [[-0.27, 0.13, 0.11, 0.55], [-0.78, 0.11, 0.10, 0.50]].forEach(([y, rt, rb, h]) => {
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 8), suitMat);
+        m.position.y = y; leg.add(m);
+      });
       const boot = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.3), darkMat);
-      boot.position.set(0.02, -1.07, 0.04);
-      leg.add(boot);
+      boot.position.set(0.02, -1.07, 0.04); leg.add(boot);
       leg.position.set(side * 0.2, -0.05, 0);
       return leg;
     }
-    const leftLeg  = makeLeg(-1);
-    const rightLeg = makeLeg(1);
+    const leftLeg = makeLeg(-1), rightLeg = makeLeg(1);
     boy.add(leftLeg, rightLeg);
 
-    // Thruster glow
-    const thruster = new THREE.PointLight(0x00ffcc, 2, 3);
-    thruster.position.set(0, -0.2, -0.5);
-    boy.add(thruster);
-    const thrusterGeo = new THREE.ConeGeometry(0.08, 0.4, 8);
-    const thrusterMesh = new THREE.Mesh(thrusterGeo,
-      new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x00ffcc, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 }));
+    // Thruster
+    const thruster     = new THREE.PointLight(0x00ffcc, 2, 3);
+    thruster.position.set(0, -0.2, -0.5); boy.add(thruster);
+    const thrusterMesh = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4, 8), thrustMat);
     thrusterMesh.rotation.x = Math.PI;
-    thrusterMesh.position.set(0, -0.55, -0.35);
-    boy.add(thrusterMesh);
+    thrusterMesh.position.set(0, -0.55, -0.35); boy.add(thrusterMesh);
 
-    // --- Floating debris ---
+    // Debris
     const debris = [];
     for (let i = 0; i < 18; i++) {
       const geo = Math.random() > 0.5
         ? new THREE.OctahedronGeometry(Math.random() * 0.12 + 0.04)
         : new THREE.IcosahedronGeometry(Math.random() * 0.1 + 0.03);
       const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(Math.random() * 0.15 + 0.55, 0.4, 0.5),
-        roughness: 0.8,
+        color: new THREE.Color().setHSL(Math.random() * 0.15 + 0.55, 0.4, 0.5), roughness: 0.8,
       }));
-      mesh.position.set(
-        (Math.random() - 0.5) * 8,
-        (Math.random() - 0.5) * 5,
-        (Math.random() - 0.5) * 6 - 1
-      );
-      mesh.userData.spin = (Math.random() - 0.5) * 0.02;
-      mesh.userData.drift = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.003,
-        (Math.random() - 0.5) * 0.003,
-        0
-      );
-      scene.add(mesh);
-      debris.push(mesh);
+      mesh.position.set((Math.random()-0.5)*8, (Math.random()-0.5)*5, (Math.random()-0.5)*6-1);
+      mesh.userData.spin  = (Math.random()-0.5) * 0.02;
+      mesh.userData.drift = new THREE.Vector3((Math.random()-0.5)*0.003, (Math.random()-0.5)*0.003, 0);
+      scene.add(mesh); debris.push(mesh);
     }
 
-    // --- Animate ---
+    // ── Particle burst ────────────────────────────────────────────
+    const PC = 120;
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(PC * 3);
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const pMat = new THREE.PointsMaterial({ color: 0x00ffcc, size: 0.13, transparent: true, opacity: 0 });
+    scene.add(new THREE.Points(pGeo, pMat));
+
+    const pVel = Array.from({ length: PC }, () => {
+      const th = Math.random() * Math.PI * 2, ph = Math.random() * Math.PI;
+      return new THREE.Vector3(
+        Math.sin(ph)*Math.cos(th), Math.sin(ph)*Math.sin(th), Math.cos(ph)
+      ).multiplyScalar(0.04 + Math.random() * 0.05);
+    });
+
+    let burstActive = false, burstT = 0;
+
+    const BURST_COLORS = [0x00ffcc, 0xff8844, 0x44ddff, 0xffd700];
+
+    function triggerBurst() {
+      const wp = new THREE.Vector3();
+      boy.getWorldPosition(wp);
+      const arr = pGeo.attributes.position.array;
+      for (let i = 0; i < PC; i++) {
+        arr[i*3] = wp.x; arr[i*3+1] = wp.y + 0.8; arr[i*3+2] = wp.z;
+      }
+      pGeo.attributes.position.needsUpdate = true;
+      pMat.opacity = 1;
+      pMat.color.set(BURST_COLORS[Math.min(fuel - 1, 3)]);
+      burstActive = true; burstT = 0;
+    }
+
+    // ── Win flight ────────────────────────────────────────────────
+    let winFlightActive = false, winFlightT = 0;
+
+    // ── Animate ───────────────────────────────────────────────────
     const clock = new THREE.Clock();
     let t = 0;
 
     function animate() {
       requestAnimationFrame(animate);
-      const dt = clock.getDelta();
+      const dt = Math.min(clock.getDelta(), 0.05);
       t += dt;
 
-      // Boy floats and gently tumbles
-      boy.position.y  = Math.sin(t * 0.5) * 0.18;
-      boy.position.x  = Math.sin(t * 0.3) * 0.08;
-      boy.rotation.y  = Math.sin(t * 0.25) * 0.25;
-      boy.rotation.z  = Math.sin(t * 0.4) * 0.06;
+      if (!winFlightActive) {
+        // Idle float
+        boy.position.y = Math.sin(t * 0.5) * 0.18;
+        boy.position.x = Math.sin(t * 0.3) * 0.08;
+        boy.rotation.y = Math.sin(t * 0.25) * 0.25;
+        boy.rotation.z = Math.sin(t * 0.4) * 0.06;
 
-      // Arm sway (idle drift)
+        // Thruster scales with fuel
+        const fb = fuel * 0.45;
+        thruster.intensity = 1.8 + fb + Math.sin(t * 12) * (0.4 + fb * 0.3);
+        thrusterMesh.scale.y = 0.9 + fb * 0.35 + Math.sin(t * 10) * 0.15;
+
+        // Camera drift
+        camera.position.x = Math.sin(t * 0.1) * 0.3;
+        camera.lookAt(0, 0.8, 0);
+      } else {
+        // Win launch
+        winFlightT += dt;
+        boy.position.y += winFlightT * 0.09;
+        boy.position.z -= winFlightT * 0.07;
+        boy.rotation.x -= dt * 0.6;
+        thruster.intensity = 10 + Math.sin(t * 25) * 3;
+        thrusterMesh.scale.y = 2.5 + winFlightT * 0.8;
+        camera.position.z -= dt * 0.4;
+        camera.position.y += dt * 0.05;
+      }
+
+      // Arms / legs sway
       leftArm.rotation.z  = -0.3 + Math.sin(t * 0.6) * 0.15;
       rightArm.rotation.z =  0.3 - Math.sin(t * 0.6 + 1) * 0.15;
       leftArm.rotation.x  = Math.sin(t * 0.4) * 0.1;
       rightArm.rotation.x = Math.sin(t * 0.4 + 0.5) * 0.1;
-
-      // Leg drift
       leftLeg.rotation.x  = Math.sin(t * 0.5) * 0.08;
       rightLeg.rotation.x = Math.sin(t * 0.5 + 1) * 0.08;
-
-      // Thruster flicker
-      thruster.intensity = 1.8 + Math.sin(t * 12) * 0.4;
-      thrusterMesh.scale.y = 0.9 + Math.sin(t * 10) * 0.15;
 
       // Debris drift
       for (const d of debris) {
@@ -232,13 +558,27 @@
         if (Math.abs(d.position.y) > 3.5) d.userData.drift.y *= -1;
       }
 
-      // Camera slow drift
-      camera.position.x = Math.sin(t * 0.1) * 0.3;
-      camera.lookAt(0, 0.8, 0);
+      // Particle burst decay
+      if (burstActive) {
+        burstT += dt;
+        const arr = pGeo.attributes.position.array;
+        for (let i = 0; i < PC; i++) {
+          arr[i*3]   += pVel[i].x;
+          arr[i*3+1] += pVel[i].y;
+          arr[i*3+2] += pVel[i].z;
+        }
+        pGeo.attributes.position.needsUpdate = true;
+        pMat.opacity = Math.max(0, 1 - burstT * 1.6);
+        if (burstT > 1) { burstActive = false; pMat.opacity = 0; }
+      }
 
       renderer.render(scene, camera);
     }
+
+    // ── Init ──────────────────────────────────────────────────────
+    showCipher(0);
     animate();
+    setTimeout(() => inputEl.focus(), 300);
   </script>
 </body>
 </html>
