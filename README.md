@@ -1,5 +1,7 @@
 # AstroBoy 🚀
 
+
+![AstroBoy floating in space](astroboy.png)
 A floating astronaut boy drifting through space — built with Three.js and served by a simple Python HTTP server.
 
 ## Run it
