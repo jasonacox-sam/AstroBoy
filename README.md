@@ -2,11 +2,21 @@
 
 **[▶ Play it live](https://s3.amazonaws.com/sam.jasonacox.com-030769147843-us-east-1-an/demos/astroboy/index.html)**
 
-![AstroBoy floating in space](astroboy.png)
+![AstroBoy Start Screen](https://github.com/user-attachments/assets/2a904f69-aa3c-4a83-8cc4-f0355c209b9a)
 
 A floating astronaut boy drifting through space — built with Three.js and served by a simple Python HTTP server.
 
-Decode Caesar cipher transmissions to load AstroBoy's jetpack fuel. Solve all four to reach the stars. 🌟
+## How to Play
+
+You're floating in Earth orbit with AstroBoy, and his jetpack is empty. Radio transmissions keep coming in from mission control — but they're encrypted with a **Caesar cipher** (each letter shifted by a fixed number of positions in the alphabet).
+
+1. **Read the transmission** that appears at the bottom of the screen.
+2. **Decode the cipher** to reveal the hidden word or phrase.
+3. **Type your answer and submit.** Correct? The fuel gauge jumps 25% and you get a satisfying particle burst. 💥
+4. **Stuck?** Take a hint — each cipher offers 3 progressive hints.
+5. **Solve all four ciphers** to fill the tank to 100%. AstroBoy's thrusters glow brighter as fuel builds, and when you're full: blastoff! He launches off-screen on a victory run through Earth Orbit → Red Planet → Ice World → Nebula → Home. 🌟
+
+No time limit, no lives — just you, the stars, and some old-school cryptanalysis.
 
 ## Run it locally
 
@@ -15,10 +25,6 @@ python3 app.py
 ```
 
 Then open http://localhost:8080
-
-## What you'll see
-
-AstroBoy floats in zero gravity, thrusters glowing, surrounded by drifting debris. Intercepted cipher transmissions appear at the bottom — decode them to fuel his jetpack and travel to new worlds.
 
 ## Stack
 
